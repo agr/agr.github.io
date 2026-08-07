@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image Host</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <h1>Image Host</h1>
+    </div>
+    <div class="session-card">
+      <span id="sessionStatus">Signed out</span>
+      <button id="logoutButton" class="secondary hidden" type="button">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="authPanel" class="grid two">
+      <article id="registerPanel" class="panel">
+        <h2>Register</h2>
+        <form id="registerForm">
+          <label>Username <input name="username" autocomplete="username" required minlength="3"></label>
+          <label>Password <input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+          <button type="submit">Create account</button>
+        </form>
+        <p id="registerMessage" class="message"></p>
+      </article>
+
+      <article class="panel">
+        <h2>Log in</h2>
+        <form id="loginForm">
+          <label>Username <input name="username" autocomplete="username" required></label>
+          <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+          <button type="submit">Log in</button>
+        </form>
+        <p id="loginMessage" class="message"></p>
+      </article>
+    </section>
+
+    <section id="appPanel" class="hidden">
+      <nav class="tabs" aria-label="Application sections">
+        <button data-tab="upload" class="active" type="button">Upload</button>
+        <button data-tab="images" type="button">My Images</button>
+        <button data-tab="tags" type="button">Tags</button>
+        <button data-tab="keys" type="button">API Keys</button>
+        <button id="adminTab" data-tab="admin" class="hidden" type="button">Admin</button>
+      </nav>
+
+      <div id="approvalNotice" class="notice warning hidden">
+        Awaiting admin approval. You can sign in, but you can't upload or create API keys yet.
+      </div>
+
+      <section id="uploadTab" class="tab-panel">
+        <article class="panel">
+          <h2>Upload image</h2>
+          <p class="muted">JPEG, PNG, WebP, HEIC, or HEIF. Maximum size: 25 MB.</p>
+          <form id="uploadForm">
+            <label id="dropZone" class="dropzone" for="imageFile" tabindex="0">
+              <span class="dropzone-title">Drag &amp; drop an image here, or click to choose</span>
+              <span id="selectedFileName" class="dropzone-file muted">No file selected</span>
+              <input id="imageFile" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple required>
+            </label>
+            <label for="uploadTags">
+              Tags (optional — applied to all uploads)
+              <input id="uploadTags" placeholder="tag-one, tag_two">
+            </label>
+            <button id="uploadButton" type="submit">Upload</button>
+          </form>
+          <progress id="uploadProgress" class="hidden" max="100" value="0"></progress>
+          <p id="uploadMessage" class="message"></p>
+          <div id="uploadResult" class="result-list hidden"></div>
+        </article>
+      </section>
+
+      <section id="imagesTab" class="tab-panel hidden">
+        <article class="panel">
+          <div class="section-heading">
+            <h2>My Images</h2>
+            <button id="refreshImages" class="secondary" type="button">Refresh</button>
+          </div>
+          <form id="tagFilterForm" class="inline-form tag-form">
+            <label for="tagFilterInput">Filter tags (AND)</label>
+            <input id="tagFilterInput" placeholder="summer, family">
+            <button type="submit">Apply filter</button>
+            <button id="clearTagFilter" class="secondary" type="button">Clear</button>
+          </form>
+          <div id="activeTagFilters" class="tag-list"></div>
+          <div id="imagesMessage" class="message"></div>
+          <div id="imagesList" class="cards"></div>
+        </article>
+      </section>
+
+      <section id="tagsTab" class="tab-panel hidden">
+        <article class="panel">
+          <div class="section-heading">
+            <h2>Tags</h2>
+            <button id="refreshTags" class="secondary" type="button">Refresh</button>
+          </div>
+          <p class="muted">Make a tag public to get a shareable gallery link.</p>
+          <div id="tagsMessage" class="message"></div>
+          <div id="tagsList" class="list"></div>
+        </article>
+      </section>
+
+      <section id="keysTab" class="tab-panel hidden">
+        <article class="panel">
+          <div class="section-heading">
+            <h2>API Keys</h2>
+            <button id="refreshKeys" class="secondary" type="button">Refresh</button>
+          </div>
+          <p class="muted">The secret is shown once. Copy it immediately and store it securely.</p>
+          <button id="createKey" type="button">Create API key</button>
+          <div id="newKey" class="notice hidden"></div>
+          <div id="keysMessage" class="message"></div>
+          <div id="keysList" class="list"></div>
+        </article>
+      </section>
+
+      <section id="adminTabPanel" class="tab-panel hidden">
+        <article class="panel">
+          <div class="section-heading">
+            <h2>Admin panel</h2>
+            <button id="refreshUsers" class="secondary" type="button">Refresh</button>
+          </div>
+          <p class="muted">The first admin is protected; controls are disabled for that account.</p>
+          <div class="settings-card">
+            <label class="checkbox-row" for="registrationEnabledToggle">
+              <input id="registrationEnabledToggle" type="checkbox">
+              <span>Allow new user registration</span>
+            </label>
+          </div>
+          <div id="adminMessage" class="message"></div>
+          <div id="usersList" class="list"></div>
+        </article>
+      </section>
+
+    </section>
+  </main>
+
+  <template id="copyRowTemplate">
+    <div class="copy-row">
+      <span></span>
+      <input readonly>
+      <button type="button">Copy</button>
+    </div>
+  </template>
+
+  <script src="config.js"></script>
+  <script src="vendor/heic2any.min.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
