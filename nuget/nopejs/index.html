@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="style.css">
+        <script src="bundle.js" defer></script>
+    </head>
+    <body>
+        <h1>NuGet Online Package Explorer</h1>
+        <h2>Almost truly serverless</h2>
+        <div id="input">
+            <h3>Search for a package</h3>
+            <div><input id="packageSearch" type="text" placeholder="newtonsoft.json"></div>
+            <div id="searchResults">
+                <div id="packages">
+                    <ul data-bind="foreach: results">
+                        <li><span data-bind="text: id, click: $parent.onPackageClick" class="viewable"></span></li>
+                    </ul>
+                </div>
+                <div id="versions">
+                    <ul data-bind="foreach: versions">
+                        <li><span data-bind="text: version, click: $parent.onVersionClick" class="viewable"></span></li>
+                    </ul>
+                </div>
+            </div>
+            <div>
+                <h3>OR enter a nupkg URL</h3>
+                <input id="packageUrl" type="text" placeholder="https://globalcdn.nuget.org/packages/newtonsoft.json.13.0.1.nupkg"/><button id="processBtn">Explore</button>
+            </div>
+        </div>
+
+        <div id="packageInfo">
+            <ul data-bind="foreach: entries">
+                <li><span data-bind="text: filename, class: viewable() ? 'viewable' : '', click: viewable() ? click : null"></span></li>
+            </ul>
+        </div>
+
+        <div id="contentPopupContainer" class="invisible">
+            <div id="popupShade"></div>
+            <div id="contentWrapper">
+                <div id="closePopup">&times;</div>
+                <div id="contentPopup"></div>
+                <div id="content-methods" class="invisible">
+                    <ul data-bind="foreach: types">
+                        <li>
+                            <span data-bind="text: name"></span>
+                            <ul data-bind="foreach: methods">
+                                <li><span data-bind="text: name"></span></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

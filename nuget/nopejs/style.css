@@ -1,0 +1,76 @@
+#packageUrl {
+    width: 40em;
+}
+
+.viewable {
+    border-bottom: 1px dashed blue;
+    cursor: pointer;
+}
+
+#contentPopupContainer {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+#popupShade {
+    background-color: white;
+    opacity: 0.85;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+}
+
+.invisible {
+    display: none !important;
+}
+
+#contentWrapper {
+    position: relative;
+    max-width: 70vw;
+    max-height: 90vh;
+    background-color: white;
+    z-index: 2;
+    opacity: 1;
+    overflow-y: auto;
+}
+
+#contentPopup, #content-methods {
+    padding: 2em;
+}
+
+#contentPopup img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+#closePopup {
+    position: sticky;
+    display: block;
+    float: right;
+    cursor: pointer;
+    text-align: right;
+    top: 0;
+    padding: 0.2em;
+}
+
+#searchResults {
+    display: flex;
+}
+
+#packages li {
+    list-style-type: none;
+}
+
+#versions li {
+    display: inline-block;
+    padding-right: 1.5em;
+}
