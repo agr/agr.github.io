@@ -180,10 +180,53 @@ function startSession() {
   showQuestion();
 }
 
-function focusAnswer(input) {
-  // Without a user gesture iOS focuses the field but keeps the keyboard closed.
-  if (usesIOSKeyboard && !keyboardOpen()) return;
+function focusAnswer(input, userGesture = false) {
+  if (usesIOSKeyboard && !keyboardOpen() && document.activeElement !== input) {
+    // Without a user gesture iOS focuses the field but keeps the keyboard closed.
+    if (!userGesture) return;
+    if (!(window.visualViewport?.scale > 1)) return openKeyboardViaProxy(input);
+  }
   input.focus({ preventScroll: true });
+}
+
+// While its keyboard slides in, Safari scrolls the page to reveal the focused
+// field before reporting the smaller viewport. Open the keyboard from a field
+// already at the top of the screen (nothing to reveal), then hand focus to the
+// answer once the layout fits above the keyboard.
+let keyboardProxy = null;
+function openKeyboardViaProxy(input) {
+  keyboardProxy?.remove();
+  const proxy = keyboardProxy = document.createElement("input");
+  for (const name of ["type", "inputmode", "enterkeyhint", "autocomplete", "autocapitalize", "autocorrect", "spellcheck"]) {
+    if (input.hasAttribute(name)) proxy.setAttribute(name, input.getAttribute(name));
+  }
+  proxy.className = "keyboard-proxy";
+  proxy.tabIndex = -1;
+  proxy.setAttribute("aria-hidden", "true");
+  document.body.append(proxy);
+  proxy.focus({ preventScroll: true });
+
+  const started = performance.now();
+  const handoff = () => {
+    if (keyboardProxy !== proxy) return;
+    if (document.activeElement !== proxy || !input.isConnected) {
+      proxy.remove();
+      keyboardProxy = null;
+      return;
+    }
+    updateViewport();
+    // A hardware keyboard never shrinks the viewport; hand off after a short wait anyway.
+    if (!keyboardOpen() && performance.now() - started < 1200) return requestAnimationFrame(handoff);
+    requestAnimationFrame(() => {
+      if (keyboardProxy !== proxy) return;
+      if (proxy.value && !input.readOnly) input.value += proxy.value;
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(input.value.length, input.value.length);
+      proxy.remove();
+      keyboardProxy = null;
+    });
+  };
+  requestAnimationFrame(handoff);
 }
 
 function showQuestion() {
@@ -322,11 +365,10 @@ document.addEventListener("touchend", event => {
       !target?.closest('#answer, label[for="answer"]') ||
       Math.hypot(touch.clientX - origin.clientX, touch.clientY - origin.clientY) > 10) return;
 
-  anticipateKeyboard();
   if (input === document.activeElement || !event.cancelable) return;
   // Focus within the tap gesture so the keyboard still opens on iOS.
   event.preventDefault();
-  input.focus({ preventScroll: true });
+  focusAnswer(input, true);
 }, { passive: false });
 document.addEventListener("touchcancel", () => { lastTouch = touchOrigin = null; });
 document.addEventListener("touchmove", event => {
@@ -350,13 +392,7 @@ document.addEventListener("touchmove", event => {
   if (!canScroll && event.cancelable) event.preventDefault();
 }, { passive: false });
 
-// iOS Safari pans the page to reveal a focused input before it reports the
-// keyboard's size. Shrinking the practice layout to the expected keyboard-open
-// height first keeps the input visible, so Safari has nothing to pan.
-const keyboardRatios = new Map();
-let keyboardPendingSince = 0;
-let trackUntil = 0;
-let trackFrame = 0;
+let viewportFrame = 0;
 let viewportHeight = -1;
 let viewportTop = -1;
 
@@ -366,53 +402,25 @@ function layoutHeight() {
 function keyboardOpen() {
   return (window.visualViewport?.height ?? layoutHeight()) < layoutHeight() * 0.85;
 }
-function viewportKey() {
-  return `${window.innerWidth}x${layoutHeight()}`;
-}
 function setViewport(height, top) {
   height = Math.round(height);
   top = Math.max(0, Math.round(top));
   if (height !== viewportHeight) document.documentElement.style.setProperty("--viewport-height", `${viewportHeight = height}px`);
   if (top !== viewportTop) document.documentElement.style.setProperty("--viewport-top", `${viewportTop = top}px`);
 }
-function anticipateKeyboard() {
-  if (!document.body.classList.contains("practicing") || keyboardOpen()) return;
-  const portrait = layoutHeight() >= window.innerWidth;
-  const ratio = keyboardRatios.get(viewportKey()) ?? (portrait ? 0.48 : 0.38);
-  keyboardPendingSince = performance.now();
-  setViewport(layoutHeight() * ratio, viewportTop);
-  void document.querySelector(".app-shell")?.offsetHeight;
-  trackViewport(1500);
-}
 function updateViewport() {
+  viewportFrame = 0;
   const viewport = window.visualViewport;
   const height = viewport?.height ?? window.innerHeight;
   const top = viewport?.pageTop ?? window.scrollY + (viewport?.offsetTop ?? 0);
-  if (keyboardPendingSince) {
-    if (keyboardOpen()) keyboardPendingSince = 0;
-    // Keep the anticipated height until the keyboard is reported (or never comes, e.g. a hardware keyboard).
-    else if (performance.now() - keyboardPendingSince < 1000) return setViewport(viewportHeight, top);
-    else keyboardPendingSince = 0;
-  }
-  if (keyboardOpen() && document.activeElement?.id === "answer") keyboardRatios.set(viewportKey(), height / layoutHeight());
   setViewport(height, top);
 }
-// Safari delays visualViewport events while the keyboard animates, so poll each frame for a moment.
-function trackViewport(duration = 600) {
-  trackUntil = Math.max(trackUntil, performance.now() + duration);
-  if (trackFrame) return;
-  const step = () => {
-    updateViewport();
-    trackFrame = performance.now() < trackUntil ? requestAnimationFrame(step) : 0;
-  };
-  trackFrame = requestAnimationFrame(step);
+function onViewportChange() {
+  if (!viewportFrame) viewportFrame = requestAnimationFrame(updateViewport);
 }
-const onViewportChange = () => trackViewport();
 window.visualViewport?.addEventListener("resize", onViewportChange);
 window.visualViewport?.addEventListener("scroll", onViewportChange);
 window.addEventListener("resize", onViewportChange);
 window.addEventListener("scroll", onViewportChange, { passive: true });
-document.addEventListener("focusin", () => trackViewport(1000));
-document.addEventListener("focusout", () => trackViewport(1000));
 updateViewport();
 home();
