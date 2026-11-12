@@ -25,8 +25,6 @@ let definitionVisible = false;
 let history = loadHistory();
 let fontPreference = loadFontPreference();
 let currentFont = typefaces[0];
-const usesIOSKeyboard = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 function loadFontPreference() {
   try {
@@ -168,65 +166,60 @@ function startSession() {
       <div id="answer-feedback" class="answer-feedback" role="status" aria-live="polite"></div>
       <form id="answer-form" class="answer-form" autocomplete="off">
         <label for="answer">Your answer <span>in Latin letters (romaji)</span></label>
-        <div class="answer-controls"><input id="answer" name="answer" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Type the sounds…" maxlength="120" aria-describedby="typing-tip answer-feedback" required><button id="check-answer" class="primary-button" type="submit">Check ${icon("arrow")}</button></div>
+        <div class="answer-controls"><div class="answer-field"><input id="answer" name="answer" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Type the sounds…" maxlength="120" aria-describedby="typing-tip answer-feedback" required><input id="answer-next" class="answer-next" type="text" inputmode="text" enterkeyhint="next" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" tabindex="-1" aria-label="Press Enter to continue" aria-describedby="answer-feedback"></div><button id="check-answer" class="primary-button" type="submit">Check ${icon("arrow")}</button></div>
         <p id="typing-tip" class="typing-tip">Write every vowel: こう → kou. <span>Press Enter to check.</span></p>
       </form>
     </section>`;
   document.querySelector("#answer-form").addEventListener("submit", submitAnswer);
-  document.querySelector("#definition-toggle").addEventListener("click", toggleDefinition);
+  const input = document.querySelector("#answer");
+  input.addEventListener("input", () => {
+    if (session.checked) input.value = session.answers[session.index].answer;
+  });
+  const next = document.querySelector("#answer-next");
+  // While feedback is shown, focus sits on a transparent field stacked over the
+  // answer. Moving focus between text fields keeps the iOS keyboard open and
+  // makes it pick up the new return-key label ("Next"), which it otherwise
+  // reads only when a field gains focus.
+  input.addEventListener("beforeinput", event => {
+    if (session.checked) event.preventDefault();
+  });
+  input.addEventListener("focus", () => {
+    if (session.checked) next.focus({ preventScroll: true });
+  });
+  next.addEventListener("beforeinput", event => event.preventDefault());
+  next.addEventListener("input", () => { next.value = ""; });
+  const answerFocused = () => document.activeElement === input || document.activeElement === next;
+  const keepKeyboard = (selector, action) => {
+    const button = document.querySelector(selector);
+    const retainFocus = event => { if (answerFocused()) event.preventDefault(); };
+    button.addEventListener("pointerdown", retainFocus);
+    button.addEventListener("mousedown", retainFocus);
+    // Safari blurs the field (closing the keyboard) on a button tap unless the
+    // touch is cancelled; run the button's action directly instead.
+    button.addEventListener("touchend", event => {
+      if (!answerFocused() || !event.cancelable) return;
+      event.preventDefault();
+      action();
+    }, { passive: false });
+    button.addEventListener("click", action);
+  };
+  keepKeyboard("#check-answer", () => document.querySelector("#answer-form").requestSubmit());
+  keepKeyboard("#definition-toggle", toggleDefinition);
+  document.querySelector("#check-answer").type = "button";
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter" && !event.isComposing) { event.preventDefault(); document.querySelector("#answer-form").requestSubmit(); }
+  });
+  next.addEventListener("keydown", event => {
+    if (event.key === "Enter" && !event.isComposing) { event.preventDefault(); document.querySelector("#answer-form").requestSubmit(); }
+  });
   document.querySelector("#end-session").addEventListener("click", () => {
     if (window.confirm("End this session? Your current score will not be saved.")) home();
   });
   showQuestion();
 }
 
-function focusAnswer(input, userGesture = false) {
-  if (usesIOSKeyboard && !keyboardOpen() && document.activeElement !== input) {
-    // Without a user gesture iOS focuses the field but keeps the keyboard closed.
-    if (!userGesture) return;
-    if (!(window.visualViewport?.scale > 1)) return openKeyboardViaProxy(input);
-  }
+function focusAnswer(input) {
   input.focus({ preventScroll: true });
-}
-
-// While its keyboard slides in, Safari scrolls the page to reveal the focused
-// field before reporting the smaller viewport. Open the keyboard from a field
-// already at the top of the screen (nothing to reveal), then hand focus to the
-// answer once the layout fits above the keyboard.
-let keyboardProxy = null;
-function openKeyboardViaProxy(input) {
-  keyboardProxy?.remove();
-  const proxy = keyboardProxy = document.createElement("input");
-  for (const name of ["type", "inputmode", "enterkeyhint", "autocomplete", "autocapitalize", "autocorrect", "spellcheck"]) {
-    if (input.hasAttribute(name)) proxy.setAttribute(name, input.getAttribute(name));
-  }
-  proxy.className = "keyboard-proxy";
-  proxy.tabIndex = -1;
-  proxy.setAttribute("aria-hidden", "true");
-  document.body.append(proxy);
-  proxy.focus({ preventScroll: true });
-
-  const started = performance.now();
-  const handoff = () => {
-    if (keyboardProxy !== proxy) return;
-    if (document.activeElement !== proxy || !input.isConnected) {
-      proxy.remove();
-      keyboardProxy = null;
-      return;
-    }
-    updateViewport();
-    // A hardware keyboard never shrinks the viewport; hand off after a short wait anyway.
-    if (!keyboardOpen() && performance.now() - started < 1200) return requestAnimationFrame(handoff);
-    requestAnimationFrame(() => {
-      if (keyboardProxy !== proxy) return;
-      if (proxy.value && !input.readOnly) input.value += proxy.value;
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(input.value.length, input.value.length);
-      proxy.remove();
-      keyboardProxy = null;
-    });
-  };
-  requestAnimationFrame(handoff);
 }
 
 function showQuestion() {
@@ -246,7 +239,6 @@ function showQuestion() {
   feedback.className = "answer-feedback";
   const input = document.querySelector("#answer");
   input.value = "";
-  input.readOnly = false;
   input.removeAttribute("aria-invalid");
   input.className = "";
   document.querySelector("#check-answer").innerHTML = `Check ${icon("arrow")}`;
@@ -284,7 +276,9 @@ function submitAnswer(event) {
   const correct = isCorrect(word.kana, input.value);
   session.answers.push({ ...word, answer: input.value.trim(), correct, romaji: romanize(word.kana), font: currentFont });
   session.checked = true;
-  input.readOnly = true;
+  const next = document.querySelector("#answer-next");
+  next.enterKeyHint = session.index === session.length - 1 ? "done" : "next";
+  next.value = "";
   input.setAttribute("aria-invalid", String(!correct));
   input.className = correct ? "input-correct" : "input-incorrect";
   const feedback = document.querySelector("#answer-feedback");
@@ -292,6 +286,7 @@ function submitAnswer(event) {
   feedback.innerHTML = `<span class="feedback-symbol" role="img" aria-label="${correct ? "Correct" : "Incorrect"}">${correct ? "✓" : "↗"}</span><div><span></span></div>`;
   feedback.querySelector(":scope > div > span").textContent = `${romanize(word.kana)} — ${word.meaning}`;
   document.querySelector("#check-answer").innerHTML = `${session.index === session.length - 1 ? "Results" : "Next"} ${icon("arrow")}`;
+  next.focus({ preventScroll: true });
 }
 
 function showResults() {
@@ -349,32 +344,14 @@ document.querySelector(".brand").addEventListener("click", event => {
 });
 
 let lastTouch = null;
-let touchOrigin = null;
 document.addEventListener("touchstart", event => {
   lastTouch = event.touches.length === 1 ? event.touches[0] : null;
-  touchOrigin = lastTouch;
 }, { passive: true });
-document.addEventListener("touchend", event => {
-  const origin = touchOrigin;
-  lastTouch = touchOrigin = null;
-  const touch = event.changedTouches[0];
-  const target = event.target instanceof Element ? event.target : null;
-  const input = document.querySelector("#answer");
-  if (!usesIOSKeyboard || !origin || !touch || event.touches.length ||
-      window.visualViewport?.scale > 1 || !input || input.readOnly ||
-      !target?.closest('#answer, label[for="answer"]') ||
-      Math.hypot(touch.clientX - origin.clientX, touch.clientY - origin.clientY) > 10) return;
-
-  if (input === document.activeElement || !event.cancelable) return;
-  // Focus within the tap gesture so the keyboard still opens on iOS.
-  event.preventDefault();
-  focusAnswer(input, true);
-}, { passive: false });
-document.addEventListener("touchcancel", () => { lastTouch = touchOrigin = null; });
+document.addEventListener("touchend", () => { lastTouch = null; }, { passive: true });
+document.addEventListener("touchcancel", () => { lastTouch = null; }, { passive: true });
 document.addEventListener("touchmove", event => {
   const previous = lastTouch;
   lastTouch = event.touches.length === 1 ? event.touches[0] : null;
-  if (!lastTouch) touchOrigin = null;
   if (!previous || !lastTouch || !document.body.classList.contains("practicing") || window.visualViewport?.scale > 1) return;
 
   const deltaY = previous.clientY - lastTouch.clientY;
@@ -396,12 +373,6 @@ let viewportFrame = 0;
 let viewportHeight = -1;
 let viewportTop = -1;
 
-function layoutHeight() {
-  return document.documentElement.clientHeight || window.innerHeight;
-}
-function keyboardOpen() {
-  return (window.visualViewport?.height ?? layoutHeight()) < layoutHeight() * 0.85;
-}
 function setViewport(height, top) {
   height = Math.round(height);
   top = Math.max(0, Math.round(top));
