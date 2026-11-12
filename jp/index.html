@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+    <meta name="theme-color" content="#f6f5ee">
+    <meta name="description" content="Practice reading hiragana with Japanese vocabulary.">
+    <title>Kana Daily</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%232e5946'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='46' fill='%23fff' font-family='sans-serif'%3Eあ%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body class="home-screen">
+    <div class="app-shell">
+      <header class="site-header">
+        <a class="brand" href="./" aria-label="Kana Daily home"><span class="brand-mark" lang="ja">あ</span>kana<span class="brand-light">daily</span><span class="brand-dot"></span></a>
+        <button id="chart-open" class="text-button" aria-haspopup="dialog" aria-controls="chart-dialog"><span aria-hidden="true">▦</span> Hiragana chart</button>
+      </header>
+      <main id="main"></main>
+    </div>
+    <dialog id="chart-dialog" aria-labelledby="chart-title">
+      <div class="dialog-heading"><div><p class="eyebrow">YOUR POCKET REFERENCE</p><h2 id="chart-title">Meet the hiragana.</h2></div><button id="chart-close" class="icon-button" aria-label="Close hiragana chart">✕</button></div>
+      <p class="muted">Read left to right. Type the Latin letters beneath each character.</p>
+      <div id="chart-grid" class="chart-grid"></div>
+      <p class="chart-note">Small ゃ・ゅ・ょ combine with the character before them: きゃ = kya. Small っ doubles the next consonant: きって = kitte. Write long vowels in full: こう = kou, おお = oo.</p>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>
