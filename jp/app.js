@@ -166,7 +166,7 @@ function startSession() {
       <div id="answer-feedback" class="answer-feedback" role="status" aria-live="polite"></div>
       <form id="answer-form" class="answer-form" autocomplete="off">
         <label for="answer">Your answer <span>in Latin letters (romaji)</span></label>
-        <div class="answer-controls"><input id="answer" name="answer" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Type the sounds…" maxlength="120" aria-describedby="typing-tip answer-feedback" required><button id="check-answer" class="primary-button" type="submit">Check ${icon("arrow")}</button></div>
+        <div class="answer-controls"><input id="answer" name="answer" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Type the sounds…" maxlength="120" aria-describedby="typing-tip answer-feedback" required><button id="check-answer" class="primary-button" type="submit">Check ${icon("arrow")}</button></div>
         <p id="typing-tip" class="typing-tip">Write every vowel: こう → kou. <span>Press Enter to check.</span></p>
       </form>
     </section>`;
@@ -239,7 +239,7 @@ function submitAnswer(event) {
   const feedback = document.querySelector("#answer-feedback");
   feedback.classList.add(correct ? "correct" : "incorrect");
   feedback.innerHTML = `<span class="feedback-symbol" role="img" aria-label="${correct ? "Correct" : "Incorrect"}">${correct ? "✓" : "↗"}</span><div><span></span></div>`;
-  feedback.querySelector("div > span").textContent = `${romanize(word.kana)} — ${word.meaning}`;
+  feedback.querySelector(":scope > div > span").textContent = `${romanize(word.kana)} — ${word.meaning}`;
   document.querySelector("#check-answer").innerHTML = `${session.index === session.length - 1 ? "Results" : "Next"} ${icon("arrow")}`;
 }
 
@@ -299,8 +299,10 @@ document.querySelector(".brand").addEventListener("click", event => {
 
 function updateViewport() {
   document.documentElement.style.setProperty("--viewport-height", `${window.visualViewport?.height ?? window.innerHeight}px`);
+  document.documentElement.style.setProperty("--viewport-top", `${window.visualViewport?.offsetTop ?? 0}px`);
 }
 window.visualViewport?.addEventListener("resize", updateViewport);
+window.visualViewport?.addEventListener("scroll", updateViewport);
 window.addEventListener("resize", updateViewport);
 updateViewport();
 home();
