@@ -297,12 +297,46 @@ document.querySelector(".brand").addEventListener("click", event => {
   if (!session || session.index === session.length || window.confirm("Leave this session and return to the start?")) home();
 });
 
+let lastTouch = null;
+document.addEventListener("touchstart", event => {
+  lastTouch = event.touches.length === 1 ? event.touches[0] : null;
+}, { passive: true });
+document.addEventListener("touchend", () => { lastTouch = null; });
+document.addEventListener("touchcancel", () => { lastTouch = null; });
+document.addEventListener("touchmove", event => {
+  const previous = lastTouch;
+  lastTouch = event.touches.length === 1 ? event.touches[0] : null;
+  if (!previous || !lastTouch || !document.body.classList.contains("practicing") || window.visualViewport?.scale > 1) return;
+
+  const deltaY = previous.clientY - lastTouch.clientY;
+  const deltaX = previous.clientX - lastTouch.clientX;
+  const target = event.target instanceof Element ? event.target : null;
+  if (Math.abs(deltaX) > Math.abs(deltaY) && target?.closest("#answer")) return;
+
+  const scroller = target?.closest("#chart-dialog[open], .practice");
+  const maxScroll = scroller ? scroller.scrollHeight - scroller.clientHeight : 0;
+  const canScroll = maxScroll > 1 && (
+    (deltaY > 0 && scroller.scrollTop < maxScroll - 1) ||
+    (deltaY < 0 && scroller.scrollTop > 1)
+  );
+  // Safari can pan the document behind the keyboard even with overflow hidden.
+  if (!canScroll && event.cancelable) event.preventDefault();
+}, { passive: false });
+
+let viewportFrame = 0;
 function updateViewport() {
-  document.documentElement.style.setProperty("--viewport-height", `${window.visualViewport?.height ?? window.innerHeight}px`);
-  document.documentElement.style.setProperty("--viewport-top", `${window.visualViewport?.offsetTop ?? 0}px`);
+  viewportFrame = 0;
+  const viewport = window.visualViewport;
+  const top = viewport?.pageTop ?? window.scrollY + (viewport?.offsetTop ?? 0);
+  document.documentElement.style.setProperty("--viewport-height", `${viewport?.height ?? window.innerHeight}px`);
+  document.documentElement.style.setProperty("--viewport-top", `${Math.max(0, top)}px`);
 }
-window.visualViewport?.addEventListener("resize", updateViewport);
-window.visualViewport?.addEventListener("scroll", updateViewport);
-window.addEventListener("resize", updateViewport);
+function scheduleViewportUpdate() {
+  if (!viewportFrame) viewportFrame = requestAnimationFrame(updateViewport);
+}
+window.visualViewport?.addEventListener("resize", scheduleViewportUpdate);
+window.visualViewport?.addEventListener("scroll", scheduleViewportUpdate);
+window.addEventListener("resize", scheduleViewportUpdate);
+window.addEventListener("scroll", scheduleViewportUpdate, { passive: true });
 updateViewport();
 home();
